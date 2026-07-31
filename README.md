@@ -69,6 +69,7 @@ AutoClipFactory 是一款运行在 macOS Apple Silicon 上的**纯本地**短视
 | 终端 | zsh（macOS 默认终端，无需额外配置） |
 | Python | 3.10 ~ 3.13（一键脚本会自动安装） |
 | Homebrew | 用于安装 ffmpeg / ollama（一键脚本会自动安装） |
+| Deno | YouTube链接解析依赖，本机已安装完成（`brew install deno`），无需再次执行 |
 
 ### macOS TCC 磁盘权限
 
@@ -118,9 +119,9 @@ AutoClipFactory 是一款运行在 macOS Apple Silicon 上的**纯本地**短视
 
 ## 核心使用流程（优先级说明）
 
-> **优先使用本地视频上传模式**（点击【选择文件】上传 MP4），无网络限制、稳定无报错。
+> **优先推荐使用「上传本地视频」功能**（点击【选择文件】上传 MP4），无网络限制、运行稳定零报错。
 >
-> 海外链接下载（YouTube 等）仅作为备选方案，受国内网络 SSL 限制极易失败，需开启本地代理 + 安装 Deno 才可使用。
+> YouTube 链接仅作为备选方案，存在国内网络 SSL 阻断限制，必须开启本地代理才可使用。本机已安装 Deno 解析环境，无需再次安装。
 
 ## 快速开始（一键启动）
 
@@ -400,6 +401,17 @@ Whisper / FFmpeg / Ollama 三类大内存进程分时串行运行，任意时刻
 
 ---
 
+## 启动前检查清单
+
+- [ ] Python 虚拟环境已创建且依赖已安装（`start.command` 自动完成）
+- [ ] FFmpeg 已安装（`ffmpeg -version` 可正常输出）
+- [ ] Ollama 服务已启动且 llama3:8b 模型已拉取（`ollama list` 可见 llama3:8b）
+- [ ] Deno 已安装（`deno --version` 可正常输出，YouTube 链接解析依赖）
+- [ ] macOS TCC 磁盘权限已授权（终端/Python 可访问 `~/AutoClip_Factory/`）
+- [ ] **使用 YouTube 链接下载前**：确认本地代理已启动、`downloader.py` 中 `--proxy` 端口配置与代理软件端口匹配
+
+---
+
 ## 常见报错修复方案
 
 ### 1. TCC 磁盘权限失败（页面红字提示）
@@ -526,29 +538,28 @@ source .venv/bin/activate
 python3 -c "from faster_whisper import WhisperModel; WhisperModel('base.en', compute_type='int8')"
 ```
 
-### 11. YouTube 下载报错 SSL: UNEXPECTED_EOF_WHILE_READING / 下载失败无输出文件
+### 11. YouTube 下载报错 SSL: UNEXPECTED_EOF_WHILE_READING / 下载失败未找到输出文件
 
 **现象**：通过链接下载 YouTube 视频时报 `SSL: UNEXPECTED_EOF_WHILE_READING`，或下载完成后提示「未找到输出文件」。
 
-**原因**：国内网络直连 YouTube SSL 链路中断，且缺失 Deno JS 解析环境导致 yt-dlp 无法解析播放器。
+**前置条件**：Deno 已安装完成（终端执行 `deno --version` 可正常输出版本）。
 
 **解决步骤**：
 
 ```bash
-# ① 安装 Deno 解析依赖
-brew install deno
+# ① 更新 yt-dlp 到最新版（使用清华镜像源加速）
+pip3 install -U yt-dlp -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# ② 更新 yt-dlp 到最新版
-pip3 install -U yt-dlp
+# ② 打开 downloader.py，确认 proxy 代理端口与本地代理软件端口保持一致
+#    默认配置为 "--proxy", "http://127.0.0.1:7890"
+#    如你的代理端口不同，请修改为实际端口（如 1087/8080）
 
-# ③ 开启本地代理，确认代理端口与 downloader.py 内配置一致
-#    downloader.py 默认代理端口为 7890，如你的代理端口不同，请修改 downloader.py 中：
-#    "--proxy", "http://127.0.0.1:7890"  →  改为你的实际端口
-
-# ④ 重启项目
+# ③ 开启本地代理软件，重启项目
 ./start.command
 # 或手动重启
 source .venv/bin/activate && python3 app.py
+
+# ④ 重新提交 YouTube 链接
 ```
 
 > **推荐**：如代理环境不稳定，建议直接使用【选择文件】上传本地 MP4 视频，完全规避网络问题。

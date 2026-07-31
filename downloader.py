@@ -26,6 +26,7 @@ class YtDlpDownloader:
     # 单视频文件大小上限 2GB（严格与 Flask MAX_CONTENT_LENGTH 对齐）
     MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024
     # yt-dlp 强制参数（单线程 + 512K 分片缓存，减少内存峰值）
+    # 配置Deno解析环境+本地代理，解决国内YouTube SSL连接中断、元信息查询失败报错
     BASE_ARGS = [
         "--no-playlist",           # 禁止下载播放列表（单链接单视频）
         "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/mp4",  # 优先后缀MP4
@@ -38,11 +39,11 @@ class YtDlpDownloader:
         "--socket-timeout", "30",
         "--newline",               # 进度换行输出，便于解析
         # ---- 代理配置（国内访问YouTube SSL链路中断，必须开代理）----
-        # 请替换为你的本地代理端口（常见：7890/1087/8080）
+        # 本地代理地址，根据自身代理软件端口修改
         "--proxy", "http://127.0.0.1:7890",
-        # ---- extractor_args：YouTube解析强制使用web客户端，消除JS缺失警告 ----
-        # 需配合 brew install deno 安装Deno运行环境，解决JS解析器缺失问题
-        "--extractor-args", "youtube:player_client=web",
+        # ---- extractor_args：YouTube解析强制使用Deno运行环境，消除JS缺失警告 ----
+        # Deno已通过 brew install deno 安装完成，无需再次安装
+        "--extractor-args", "youtube:player_client=deno",
     ]
     # 代理检测目标站（3个常见视频站，任意1个可达即认为代理可用）
     PROBE_URLS = [
