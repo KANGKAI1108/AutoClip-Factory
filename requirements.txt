@@ -1,0 +1,29 @@
+# ============================================================
+# AutoClip Factory - 基础依赖清单 (阶段2起可用)
+# 技术栈固定：Python3 + Flask + faster-whisper + ffmpeg + yt-dlp + Ollama
+# 纯本地离线运行，无云端依赖
+# 安装命令：pip3 install -r requirements.txt
+# ============================================================
+
+# ---- 阶段1必需：Flask Web 框架 ----
+Flask>=3.0.0,<4.0.0
+Werkzeug>=3.0.0,<4.0.0
+Jinja2>=3.1.0,<4.0.0
+MarkupSafe>=2.1.0,<3.0.0
+itsdangerous>=2.1.0,<3.0.0
+click>=8.1.0,<9.0.0
+blinker>=1.7.0,<2.0.0
+
+# ---- 阶段2必需：yt-dlp 视频下载 ----
+yt-dlp>=2024.1.0
+
+# ---- 阶段2必需：faster-whisper 本地语音转录（CTranslate2 CPU float16）----
+faster-whisper>=1.0.0
+ctranslate2>=4.0.0
+
+# ---- 说明 ----
+# 1. ffmpeg 不通过 pip 安装，请自行通过 Homebrew 安装：
+#       brew install ffmpeg
+# 2. Ollama 不通过 pip 安装，请从 https://ollama.ai 下载 macOS Apple Silicon 版，
+#    并拉取模型：ollama pull llama3:8b （Q4_K_M 量化，后续阶段4使用）
+# 3. macOS 首次运行 faster-whisper base.en 会联网下载约 140MB 模型文件，仅此一次

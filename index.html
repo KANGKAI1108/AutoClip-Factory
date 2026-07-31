@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoClip Factory - 本地AI高光剪辑工具 (阶段1)</title>
+<style>
+/* ============ 极简基础样式 ============ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    padding: 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { color: #6e6e73; font-size: 13px; margin-bottom: 20px; }
+
+.card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.card-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: #1d1d1f;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* ============ 输入区 ============ */
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+input[type="text"] {
+    flex: 1;
+    min-width: 240px;
+    padding: 10px 14px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+}
+input[type="text"]:focus { border-color: #0071e3; }
+button {
+    padding: 10px 18px;
+    background: #0071e3;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, opacity .15s;
+    white-space: nowrap;
+}
+button:hover:not(:disabled) { background: #0077ed; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.secondary { background: #e8e8ed; color: #1d1d1f; }
+button.secondary:hover:not(:disabled) { background: #dcdce2; }
+button.danger { background: #ff3b30; }
+button.danger:hover:not(:disabled) { background: #e0352a; }
+
+.upload-wrap {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.upload-wrap input[type="file"] {
+    padding: 8px;
+    font-size: 13px;
+    flex: 1;
+}
+
+/* ============ 模式切换开关 ============ */
+.switch-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #f5f5f7;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+}
+.switch {
+    position: relative;
+    width: 42px;
+    height: 24px;
+    background: #d2d2d7;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background .2s;
+    flex-shrink: 0;
+}
+.switch.on { background: #34c759; }
+.switch::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: left .2s;
+}
+.switch.on::after { left: 20px; }
+.switch-label-mini { font-size: 12px; color: #6e6e73; min-width: 40px; }
+
+/* ============ 任务状态区 ============ */
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    font-size: 13px;
+}
+.status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.status-label { color: #6e6e73; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+.status-value { font-weight: 500; word-break: break-all; }
+
+.progress-bar-wrap {
+    margin-top: 14px;
+    width: 100%;
+    height: 8px;
+    background: #e8e8ed;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.progress-bar {
+    height: 100%;
+    background: #0071e3;
+    width: 0%;
+    transition: width .3s;
+    border-radius: 4px;
+}
+.progress-text {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #6e6e73;
+    text-align: right;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+}
+.status-idle    { background: #e8e8ed; color: #6e6e73; }
+.status-running { background: #fff3cd; color: #8a6d00; }
+.status-done    { background: #d4f5d4; color: #1e7e1e; }
+.status-error   { background: #ffd6d6; color: #c5221f; }
+
+/* ============ 系统检测告警 ============ */
+.alert {
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.alert-warn    { background: #fff5e5; border-left: 4px solid #ff9500; color: #6e4b00; }
+.alert-error   { background: #ffe5e5; border-left: 4px solid #ff3b30; }
+.alert-info    { background: #e5f0ff; border-left: 4px solid #0071e3; color: #004080; }
+.alert-error-red { color: #c5221f; font-weight: 500; }
+.alert-title { font-weight: 600; margin-bottom: 4px; }
+.alert ul { margin-left: 20px; margin-top: 4px; }
+.alert li { margin-bottom: 2px; }
+
+/* ============ 日志区 ============ */
+#log-container {
+    background: #1d1d1f;
+    color: #e8e8ed;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    padding: 14px;
+    border-radius: 8px;
+    height: 340px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.log-info { color: #e8e8ed; }
+.log-warn { color: #ffd60a; }
+.log-error { color: #ff6961; }
+.toolbar-right { display: flex; gap: 8px; align-items: center; }
+.small-btn {
+    padding: 5px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+</style>
+</head>
+<body>
+
+<h1>🎬 AutoClip Factory</h1>
+<div class="subtitle">本地AI高光剪辑工具 · 阶段1 (基础骨架) · 纯本地离线运行 · 适配 Apple Silicon 8GB</div>
+
+<!-- ============ 系统检测告警区（前端弹窗提示） ============ -->
+<div id="alert-area"></div>
+
+<!-- ============ 切片模式 + 输入卡片 ============ -->
+<div class="card">
+    <div class="card-title">
+        <span>任务提交</span>
+        <div class="switch-wrap">
+            <span class="switch-label-mini" id="mode-label-left">自动AI</span>
+            <div class="switch on" id="mode-switch" title="点击切换切片模式"></div>
+            <span class="switch-label-mini" id="mode-label-right">手动</span>
+        </div>
+    </div>
+
+    <!-- 链接输入 -->
+    <div class="row">
+        <input type="text" id="url-input" placeholder="粘贴 YouTube/Bilibili 等视频链接 (http/https)..." />
+        <button id="btn-submit-link">下载并处理</button>
+    </div>
+
+    <!-- 本地上传 -->
+    <div class="upload-wrap">
+        <input type="file" id="file-input" accept=".mp4,.mov,.mkv,.webm,.avi" />
+        <button id="btn-upload" class="secondary">上传本地视频</button>
+        <button id="btn-cancel" class="danger" disabled>取消任务</button>
+    </div>
+</div>
+
+<!-- ============ 任务状态卡片 ============ -->
+<div class="card">
+    <div class="card-title">
+        <span>任务状态</span>
+        <span id="status-badge" class="status-badge status-idle">空闲</span>
+    </div>
+    <div class="status-grid">
+        <div class="status-item">
+            <span class="status-label">Task ID</span>
+            <span class="status-value" id="s-taskid">—</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">切片模式</span>
+            <span class="status-value" id="s-mode">自动AI</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">当前阶段</span>
+            <span class="status-value" id="s-stage">等待任务</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">子进程 PID</span>
+            <span class="status-value" id="s-pid">—</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">开始时间</span>
+            <span class="status-value" id="s-start">—</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">结束时间</span>
+            <span class="status-value" id="s-end">—</span>
+        </div>
+    </div>
+    <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="progress-text" id="progress-text">0%</div>
+    <div id="s-err" style="margin-top:10px; color:#c5221f; font-size:13px; display:none;"></div>
+</div>
+
+<!-- ============ 日志卡片 ============ -->
+<div class="card">
+    <div class="card-title">
+        <span>实时日志 (最近 200 行)</span>
+        <div class="toolbar-right">
+            <button class="small-btn secondary" id="btn-clear-log">清空</button>
+            <label style="font-size:12px; color:#6e6e73; display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="chk-auto-scroll" checked /> 自动滚动
+            </label>
+        </div>
+    </div>
+    <div id="log-container"></div>
+</div>
+
+<script>
+/* ============================================================
+ *  前端 JS 逻辑（阶段1）
+ * ============================================================ */
+
+// ---------- 全局常量 ----------
+const LOG_MAX_LINES = 200;       // 前端保留日志行数（与后端一致）
+const POLL_LOG_INTERVAL = 1500;  // 日志轮询间隔 ms（多线程 Flask，网页不假死）
+const POLL_STATE_INTERVAL = 1000;// 任务状态轮询间隔 ms
+let logLines = [];               // 内存中保留的日志行
+let _logFirstLoad = true;        // 初次加载 full=1 拉取历史
+let _pollTimerLog = null;
+let _pollTimerState = null;
+
+// ---------- 工具函数 ----------
+function $(id) { return document.getElementById(id); }
+
+function fmtIso(iso) {
+    if (!iso) return "—";
+    try {
+        const d = new Date(iso);
+        return d.toLocaleString("zh-CN", { hour12: false });
+    } catch { return iso; }
+}
+
+// 根据日志内容判断颜色级别
+function logClass(line) {
+    if (/\[ERROR\]/.test(line)) return "log-error";
+    if (/\[WARN\]/.test(line))  return "log-warn";
+    return "log-info";
+}
+
+// 渲染日志
+function renderLogs() {
+    const container = $("log-container");
+    const autoScroll = $("chk-auto-scroll").checked;
+    // 保留最新 200 行
+    if (logLines.length > LOG_MAX_LINES) {
+        logLines = logLines.slice(-LOG_MAX_LINES);
+    }
+    container.innerHTML = logLines
+        .map(l => `<div class="${logClass(l)}">${escapeHtml(l)}</div>`)
+        .join("");
+    if (autoScroll) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function escapeHtml(s) {
+    const div = document.createElement("div");
+    div.textContent = s;
+    return div.innerHTML;
+}
+
+// ---------- 告警渲染 ----------
+function renderAlerts(checks) {
+    const area = $("alert-area");
+    const alerts = [];
+
+    // TCC 权限失败 -> 红字
+    const tcc = checks.tcc_permission;
+    if (tcc && !tcc.ok) {
+        alerts.push(`
+            <div class="alert alert-error">
+                <div class="alert-title alert-error-red">❌ macOS 完全磁盘访问权限未开启</div>
+                <div>请在 <b>系统设置 → 隐私与安全性 → 完全磁盘访问权限</b> 中为你的终端/Terminal或 Python 开启权限。</div>
+                <div style="margin-top:4px;">失败路径：<code>${escapeHtml(tcc.error_path || "~/AutoClip_Factory/test_write.tmp")}</code></div>
+                <div style="margin-top:4px; font-size:12px;">详细错误：${escapeHtml(tcc.detail || "")}</div>
+            </div>
+        `);
+    }
+
+    // 前台第三方内存 > 1GB -> 提示关闭浏览器、播放器
+    const fm = checks.foreground_memory;
+    if (fm && fm.over_threshold) {
+        let topStr = "";
+        if (fm.top_processes && fm.top_processes.length) {
+            topStr = "<ul>" + fm.top_processes.map(p =>
+                `<li>${escapeHtml(p.name)} — ${p.mb} MB</li>`
+            ).join("") + "</ul>";
+        }
+        alerts.push(`
+            <div class="alert alert-warn">
+                <div class="alert-title">⚠️ 前台第三方进程内存占用过高 (${fm.total_mb} MB / 阈值 1024 MB)</div>
+                <div>8GB 统一内存机型建议关闭浏览器（Chrome/Safari）、视频播放器等占用内存的应用。</div>
+                <div style="margin-top:4px;">已自动清理闲置 yt-dlp/ffmpeg 残留进程：<b>${fm.cleaned_count}</b> 个</div>
+                ${topStr}
+            </div>
+        `);
+    } else if (fm && fm.cleaned_count > 0) {
+        alerts.push(`
+            <div class="alert alert-info">
+                <div class="alert-title">ℹ️ 内存清理</div>
+                <div>已自动清理闲置 yt-dlp / ffmpeg 残留进程 <b>${fm.cleaned_count}</b> 个。</div>
+            </div>
+        `);
+    }
+
+    // macOS >=15.1 AppleIntelligence 活跃
+    const ai = checks.apple_intelligence;
+    if (ai && ai.is_sequoia_15_1 && ai.active_processes && ai.active_processes.length > 0) {
+        alerts.push(`
+            <div class="alert alert-warn">
+                <div class="alert-title">⚠️ Apple Intelligence 后台进程活跃 (${ai.total_mb} MB)</div>
+                <div>macOS Sequoia 15.1+ 检测到以下 AI 后台进程占用内存：</div>
+                <ul>${ai.active_processes.map(n => `<li>${escapeHtml(n)}</li>`).join("")}</ul>
+                <div style="margin-top:4px;">建议在「系统设置 → Apple Intelligence」中临时关闭相关功能，为剪辑任务释放内存。</div>
+            </div>
+        `);
+    }
+
+    area.innerHTML = alerts.join("");
+}
+
+// ---------- 轮询：日志 ----------
+async function pollLogs() {
+    try {
+        const url = _logFirstLoad ? "/api/logs?full=1" : "/api/logs";
+        const resp = await fetch(url, { cache: "no-store" });
+        const json = await resp.json();
+        if (json.code === 0 && json.data && json.data.lines) {
+            logLines = logLines.concat(json.data.lines);
+            renderLogs();
+        }
+    } catch (e) {
+        // 网络失败静默，下一轮继续
+    } finally {
+        _logFirstLoad = false;
+    }
+}
+
+// ---------- 轮询：任务状态 ----------
+async function pollState() {
+    try {
+        const resp = await fetch("/api/task_state", { cache: "no-store" });
+        const json = await resp.json();
+        if (json.code === 0) updateStateUI(json.data);
+    } catch (e) {}
+}
+
+function updateStateUI(st) {
+    // Badge
+    const badge = $("status-badge");
+    badge.className = "status-badge status-" + (st.status || "idle");
+    const mapTxt = { idle: "空闲", running: "运行中", done: "完成", error: "错误" };
+    badge.textContent = mapTxt[st.status] || st.status;
+
+    $("s-taskid").textContent = st.task_id ? st.task_id.substring(0, 12) + "..." : "—";
+    $("s-mode").textContent = st.clip_mode === "manual" ? "手动" : "自动AI";
+    $("s-stage").textContent = st.stage || (st.status === "idle" ? "等待任务" : "—");
+    $("s-pid").textContent = st.pid || "—";
+    $("s-start").textContent = fmtIso(st.start_time);
+    $("s-end").textContent = fmtIso(st.end_time);
+
+    const pct = Math.max(0, Math.min(100, parseInt(st.progress || 0, 10)));
+    $("progress-bar").style.width = pct + "%";
+    $("progress-text").textContent = pct + "%";
+
+    const err = $("s-err");
+    if (st.status === "error" && st.error_msg) {
+        err.style.display = "block";
+        err.textContent = "错误信息：" + st.error_msg;
+    } else {
+        err.style.display = "none";
+        err.textContent = "";
+    }
+
+    // 按钮禁用
+    const running = st.status === "running";
+    $("btn-submit-link").disabled = running;
+    $("btn-upload").disabled = running;
+    $("btn-cancel").disabled = !running;
+    $("mode-switch").style.opacity = running ? 0.5 : 1;
+    $("mode-switch").style.pointerEvents = running ? "none" : "auto";
+}
+
+// ---------- 切片模式切换 ----------
+function setModeUI(mode) {
+    const sw = $("mode-switch");
+    const isManual = mode === "manual";
+    if (isManual) {
+        sw.classList.remove("on");
+    } else {
+        sw.classList.add("on");
+    }
+}
+
+async function switchMode() {
+    const sw = $("mode-switch");
+    const nextMode = sw.classList.contains("on") ? "manual" : "auto";
+    try {
+        const resp = await fetch("/api/set_clip_mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: nextMode })
+        });
+        const json = await resp.json();
+        if (json.code === 0) {
+            setModeUI(nextMode);
+        } else {
+            alert("切换失败：" + (json.msg || "未知错误"));
+        }
+    } catch (e) {
+        alert("网络错误：" + e.message);
+    }
+}
+
+// ---------- 提交链接 ----------
+async function submitLink() {
+    const url = $("url-input").value.trim();
+    if (!url) { alert("请输入视频链接"); return; }
+    $("btn-submit-link").disabled = true;
+    try {
+        const resp = await fetch("/api/submit_link", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: url })
+        });
+        const json = await resp.json();
+        if (json.code !== 0) {
+            alert("提交失败：" + (json.msg || "未知错误"));
+        } else {
+            alert("阶段1：任务已登记（下载/转录逻辑待后续阶段实现）\nTask ID: " + json.data.task_id);
+        }
+    } catch (e) {
+        alert("网络错误：" + e.message);
+    } finally {
+        $("btn-submit-link").disabled = false;
+    }
+}
+
+// ---------- 上传本地视频 ----------
+async function uploadVideo() {
+    const input = $("file-input");
+    if (!input.files || !input.files.length) {
+        alert("请先选择一个视频文件");
+        return;
+    }
+    const file = input.files[0];
+    const fd = new FormData();
+    fd.append("file", file);
+    $("btn-upload").disabled = true;
+    try {
+        const resp = await fetch("/api/upload_video", {
+            method: "POST",
+            body: fd
+        });
+        const json = await resp.json();
+        if (json.code !== 0) {
+            alert("上传失败：" + (json.msg || "未知错误"));
+        } else {
+            alert("阶段1：文件已保存（处理逻辑待后续阶段实现）\n保存路径：" + json.data.file_path
+                  + "\n大小：" + json.data.size_mb + " MB");
+            input.value = "";
+        }
+    } catch (e) {
+        alert("网络错误：" + e.message);
+    } finally {
+        $("btn-upload").disabled = false;
+    }
+}
+
+// ---------- 取消任务 ----------
+async function cancelTask() {
+    if (!confirm("确认取消当前正在运行的任务？")) return;
+    try {
+        const resp = await fetch("/api/cancel_task", { method: "POST" });
+        const json = await resp.json();
+        if (json.code !== 0) alert("取消失败：" + (json.msg || "未知错误"));
+    } catch (e) {
+        alert("网络错误：" + e.message);
+    }
+}
+
+// ---------- 首次加载：启动检测 + 拉取状态 + 启动轮询 ----------
+async function bootstrap() {
+    // 1. 启动系统检测并渲染告警
+    try {
+        const resp = await fetch("/api/startup_check", { cache: "no-store" });
+        const json = await resp.json();
+        if (json.code === 0) renderAlerts(json.data);
+    } catch (e) {
+        $("alert-area").innerHTML = `<div class="alert alert-error">无法连接后端服务，请确认 Flask 已启动在 http://127.0.0.1:5000</div>`;
+        return;
+    }
+
+    // 2. 拉取一次状态 & 日志
+    await Promise.all([pollState(), pollLogs()]);
+
+    // 3. 启动轮询（Flask threaded=True 多线程处理，不会阻塞）
+    _pollTimerLog = setInterval(pollLogs, POLL_LOG_INTERVAL);
+    _pollTimerState = setInterval(pollState, POLL_STATE_INTERVAL);
+}
+
+// ---------- 事件绑定 ----------
+document.addEventListener("DOMContentLoaded", () => {
+    $("mode-switch").addEventListener("click", switchMode);
+    $("btn-submit-link").addEventListener("click", submitLink);
+    $("btn-upload").addEventListener("click", uploadVideo);
+    $("btn-cancel").addEventListener("click", cancelTask);
+    $("btn-clear-log").addEventListener("click", () => {
+        logLines = [];
+        renderLogs();
+    });
+    $("url-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") submitLink();
+    });
+    bootstrap();
+});
+</script>
+
+</body>
+</html>

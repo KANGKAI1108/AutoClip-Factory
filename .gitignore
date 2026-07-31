@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 运行时日志（自动生成）
+app.log
+error.log
+*.log
+
+# 工作目录内容（首次运行自动创建，不入库）
+Source_Videos/*
+Temp_Clips/*
+Output/*
+static/*
+# 保留目录占位（git 不跟踪空目录）
+!Source_Videos/.gitkeep
+!Temp_Clips/.gitkeep
+!Output/.gitkeep
+!static/.gitkeep
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
