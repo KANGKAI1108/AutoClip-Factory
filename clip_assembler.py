@@ -181,9 +181,10 @@ class ClipAssembler:
         返回:
           {
             "ok": bool,
-            "video_file_path": str,   # 成品绝对路径
-            "video_file_name": str,   # 成片文件名
-            "clip_count": int,        # 拼接段数
+            "video_full_name": str,      # 成片完整文件名
+            "video_save_dir": str,       # 成品统一存储目录（Finished_Clips）
+            "video_absolute_path": str,  # 文件本地完整绝对路径
+            "clip_count": int,           # 拼接段数
             "error": str,
           }
         """
@@ -192,8 +193,9 @@ class ClipAssembler:
 
         ret: Dict[str, Any] = {
             "ok": False,
-            "video_file_path": "",
-            "video_file_name": "",
+            "video_full_name": "",
+            "video_save_dir": "",
+            "video_absolute_path": "",
             "clip_count": 0,
             "error": "",
         }
@@ -280,12 +282,14 @@ class ClipAssembler:
                     f.write(f"file '{safe_path}'\n")
 
             # 6. FFmpeg concat 无损拼接
-            output_name = f"{safe_stem}_高光成片.mp4"
+            # 命名规则：原视频名称_高光成片_时间戳.mp4（统一带时间戳，避免重名覆盖）
+            ts_str = time.strftime("%Y%m%d_%H%M%S")
+            output_name = f"{safe_stem}_高光成片_{ts_str}.mp4"
             output_path = self.finished_clips_dir / output_name
-            # 避免文件名冲突
+            # 极端情况同秒提交：若已存在则追加随机后缀
             if output_path.exists():
-                ts = int(time.time())
-                output_name = f"{safe_stem}_高光成片_{ts}.mp4"
+                import uuid as _uuid
+                output_name = f"{safe_stem}_高光成片_{ts_str}_{_uuid.uuid4().hex[:4]}.mp4"
                 output_path = self.finished_clips_dir / output_name
 
             self._log(f"[assembler] 拼接 {len(cut_files)} 段 → {output_path.name}", "INFO")
@@ -303,8 +307,9 @@ class ClipAssembler:
             )
 
             ret["ok"] = True
-            ret["video_file_path"] = str(output_path.resolve())
-            ret["video_file_name"] = output_name
+            ret["video_full_name"] = output_name
+            ret["video_save_dir"] = str(self.finished_clips_dir.resolve())
+            ret["video_absolute_path"] = str(output_path.resolve())
             ret["clip_count"] = len(cut_files)
             progress_cb(100, "阶段5：高光成片导出完成")
             return ret

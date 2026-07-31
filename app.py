@@ -319,8 +319,9 @@ _task_state = {
     "error_msg": "",        # 错误信息
     "start_time": None,     # 任务开始时间
     "end_time": None,       # 任务结束时间
-    "video_file_path": "",  # 高光成片本地绝对路径（阶段5新增）
-    "video_file_name": "",  # 高光成片文件名（阶段5新增）
+    "video_full_name": "",      # 高光成片完整文件名（阶段5新增）
+    "video_save_dir": "",       # 成品统一存储目录 Finished_Clips（阶段5新增）
+    "video_absolute_path": "",  # 成片本地完整绝对路径（阶段5新增）
 }
 _state_lock = threading.Lock()  # 任务状态读写锁
 
@@ -355,8 +356,9 @@ def try_acquire_task(task_id: str, clip_mode: str = "auto") -> bool:
             _task_state["error_msg"] = ""
             _task_state["start_time"] = datetime.now().isoformat()
             _task_state["end_time"] = None
-            _task_state["video_file_path"] = ""
-            _task_state["video_file_name"] = ""
+            _task_state["video_full_name"] = ""
+            _task_state["video_save_dir"] = ""
+            _task_state["video_absolute_path"] = ""
         write_log(f"任务启动: task_id={task_id}, mode={clip_mode}")
         return True
     else:
@@ -1471,17 +1473,19 @@ def _thread_full_pipeline(
                 source_video=video_path,
                 progress_cb=_progress_cb,
             )
-            if asm_result.get("ok") and asm_result.get("video_file_path"):
-                vpath = asm_result["video_file_path"]
-                vname = asm_result["video_file_name"]
+            if asm_result.get("ok") and asm_result.get("video_absolute_path"):
+                v_full_name = asm_result.get("video_full_name") or ""
+                v_save_dir = asm_result.get("video_save_dir") or ""
+                v_abs_path = asm_result.get("video_absolute_path") or ""
                 write_log(
-                    f"[阶段5] ✅ 高光成片导出成功: {vname} ({asm_result.get('clip_count', 0)}段拼接)",
+                    f"[阶段5] ✅ 高光成片导出成功: {v_full_name} ({asm_result.get('clip_count', 0)}段拼接)",
                     "INFO"
                 )
-                # 写入任务状态供前端下载
+                # 写入任务状态供前端展示与下载
                 update_task_state(
-                    video_file_path=vpath,
-                    video_file_name=vname,
+                    video_full_name=v_full_name,
+                    video_save_dir=v_save_dir,
+                    video_absolute_path=v_abs_path,
                 )
             else:
                 asm_err = asm_result.get("error") or "未知错误"
@@ -1570,14 +1574,14 @@ def api_task_state():
 def api_download_clip():
     """
     下载高光成片 MP4
-    Query: 无（直接读取当前任务状态的 video_file_path）
+    Query: 无（直接读取当前任务状态的 video_absolute_path）
     返回：文件流（Content-Disposition: attachment）或错误 JSON
     """
     from flask import send_file
     snap = get_task_state_snapshot()
-    vpath = snap.get("video_file_path") or ""
+    vpath = snap.get("video_absolute_path") or ""
     if not vpath:
-        return jsonify({"code": 1, "msg": "未生成剪辑视频（video_file_path 为空）"}), 404
+        return jsonify({"code": 1, "msg": "未生成剪辑视频（video_absolute_path 为空）"}), 404
     p = Path(vpath)
     if not p.exists() or p.stat().st_size == 0:
         return jsonify({"code": 2, "msg": f"成片文件不存在或为空: {p.name}"}), 404
@@ -1591,6 +1595,32 @@ def api_download_clip():
     except Exception as e:
         _write_error_log(f"[api_download_clip] send_file fail: {e}")
         return jsonify({"code": 3, "msg": f"下载失败: {e}"}), 500
+
+
+@app.route("/api/open_folder", methods=["GET"])
+def api_open_folder():
+    """
+    打开 Finished_Clips 文件夹（Mac 访达）
+    读取当前任务状态 video_save_dir，调用 macOS open 命令打开访达
+    """
+    import subprocess as _sp
+    snap = get_task_state_snapshot()
+    save_dir = snap.get("video_save_dir") or ""
+    if not save_dir:
+        return jsonify({"code": 1, "msg": "未生成剪辑视频（video_save_dir 为空）"}), 404
+    d = Path(save_dir)
+    if not d.exists():
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            return jsonify({"code": 2, "msg": f"目录不存在且创建失败: {e}"}), 500
+    try:
+        # macOS 调用访达打开目录
+        _sp.Popen(["open", str(d.resolve())])
+        return jsonify({"code": 0, "msg": f"已打开文件夹: {d}"})
+    except Exception as e:
+        _write_error_log(f"[api_open_folder] open fail: {e}")
+        return jsonify({"code": 3, "msg": f"打开文件夹失败: {e}"}), 500
 
 
 @app.route("/api/logs", methods=["GET"])
