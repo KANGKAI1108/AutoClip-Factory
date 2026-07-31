@@ -37,6 +37,12 @@ class YtDlpDownloader:
         "--fragment-retries", "5",
         "--socket-timeout", "30",
         "--newline",               # 进度换行输出，便于解析
+        # ---- 代理配置（国内访问YouTube SSL链路中断，必须开代理）----
+        # 请替换为你的本地代理端口（常见：7890/1087/8080）
+        "--proxy", "http://127.0.0.1:7890",
+        # ---- extractor_args：YouTube解析强制使用web客户端，消除JS缺失警告 ----
+        # 需配合 brew install deno 安装Deno运行环境，解决JS解析器缺失问题
+        "--extractor-args", "youtube:player_client=web",
     ]
     # 代理检测目标站（3个常见视频站，任意1个可达即认为代理可用）
     PROBE_URLS = [

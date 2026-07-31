@@ -116,6 +116,12 @@ AutoClipFactory 是一款运行在 macOS Apple Silicon 上的**纯本地**短视
 
 ---
 
+## 核心使用流程（优先级说明）
+
+> **优先使用本地视频上传模式**（点击【选择文件】上传 MP4），无网络限制、稳定无报错。
+>
+> 海外链接下载（YouTube 等）仅作为备选方案，受国内网络 SSL 限制极易失败，需开启本地代理 + 安装 Deno 才可使用。
+
 ## 快速开始（一键启动）
 
 > 最简方式：双击 `start.command` 即可，脚本自动完成全部环境检测、依赖安装、模型拉取、服务启动。
@@ -519,6 +525,33 @@ python3 app.py
 source .venv/bin/activate
 python3 -c "from faster_whisper import WhisperModel; WhisperModel('base.en', compute_type='int8')"
 ```
+
+### 11. YouTube 下载报错 SSL: UNEXPECTED_EOF_WHILE_READING / 下载失败无输出文件
+
+**现象**：通过链接下载 YouTube 视频时报 `SSL: UNEXPECTED_EOF_WHILE_READING`，或下载完成后提示「未找到输出文件」。
+
+**原因**：国内网络直连 YouTube SSL 链路中断，且缺失 Deno JS 解析环境导致 yt-dlp 无法解析播放器。
+
+**解决步骤**：
+
+```bash
+# ① 安装 Deno 解析依赖
+brew install deno
+
+# ② 更新 yt-dlp 到最新版
+pip3 install -U yt-dlp
+
+# ③ 开启本地代理，确认代理端口与 downloader.py 内配置一致
+#    downloader.py 默认代理端口为 7890，如你的代理端口不同，请修改 downloader.py 中：
+#    "--proxy", "http://127.0.0.1:7890"  →  改为你的实际端口
+
+# ④ 重启项目
+./start.command
+# 或手动重启
+source .venv/bin/activate && python3 app.py
+```
+
+> **推荐**：如代理环境不稳定，建议直接使用【选择文件】上传本地 MP4 视频，完全规避网络问题。
 
 ---
 
