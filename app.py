@@ -48,6 +48,7 @@ TCC_TEST_FILE = TCC_TEST_DIR / "test_write.tmp"
 SOURCE_VIDEOS_DIR = BASE_DIR / "Source_Videos"   # 原始视频存放
 TEMP_CLIPS_DIR = BASE_DIR / "Temp_Clips"         # 临时切片
 OUTPUT_DIR = BASE_DIR / "Output"                 # 最终输出
+FINISHED_CLIPS_DIR = BASE_DIR / "Finished_Clips" # 高光成片输出目录（阶段5新增）
 STATIC_DIR = BASE_DIR / "static"                 # 静态资源
 
 # ---- 阶段2新增：下载保存目录（按约束 1.3 要求）----
@@ -180,7 +181,7 @@ def cleanup_stale_caches_if_needed(source_video_path: Optional[Path] = None):
 
 def init_directories():
     """启动时自动创建项目所需的全部文件夹"""
-    for _dir in [SOURCE_VIDEOS_DIR, TEMP_CLIPS_DIR, OUTPUT_DIR, STATIC_DIR,
+    for _dir in [SOURCE_VIDEOS_DIR, TEMP_CLIPS_DIR, OUTPUT_DIR, FINISHED_CLIPS_DIR, STATIC_DIR,
                  TCC_TEST_DIR, TCC_SOURCE_VIDEOS_DIR, TCC_OUTPUT_ROOT_DIR, CACHE_ROOT_DIR]:
         try:
             _dir.mkdir(parents=True, exist_ok=True)
@@ -318,6 +319,8 @@ _task_state = {
     "error_msg": "",        # 错误信息
     "start_time": None,     # 任务开始时间
     "end_time": None,       # 任务结束时间
+    "video_file_path": "",  # 高光成片本地绝对路径（阶段5新增）
+    "video_file_name": "",  # 高光成片文件名（阶段5新增）
 }
 _state_lock = threading.Lock()  # 任务状态读写锁
 
@@ -352,6 +355,8 @@ def try_acquire_task(task_id: str, clip_mode: str = "auto") -> bool:
             _task_state["error_msg"] = ""
             _task_state["start_time"] = datetime.now().isoformat()
             _task_state["end_time"] = None
+            _task_state["video_file_path"] = ""
+            _task_state["video_file_name"] = ""
         write_log(f"任务启动: task_id={task_id}, mode={clip_mode}")
         return True
     else:
@@ -1450,6 +1455,43 @@ def _thread_full_pipeline(
             release_task(status="error", error_msg=f"打包输出0条成功（请检查Temp_Clips）")
             return
 
+        # ===== 6.5 阶段5：FFmpeg 高光裁剪 + 拼接导出成品 MP4 =====
+        update_task_state(stage="阶段5：FFmpeg 高光裁剪拼接导出成品", progress=92)
+        write_log("[阶段5] 启动高光成片合成（ClipAssembler）", "INFO")
+        try:
+            from clip_assembler import ClipAssembler  # noqa: F401
+            assembler = ClipAssembler(
+                temp_clips_dir=TEMP_CLIPS_DIR,
+                finished_clips_dir=FINISHED_CLIPS_DIR,
+                log_fn=write_log,
+                error_log_fn=_write_error_log,
+                ffmpeg_path="ffmpeg",
+            )
+            asm_result = assembler.assemble(
+                source_video=video_path,
+                progress_cb=_progress_cb,
+            )
+            if asm_result.get("ok") and asm_result.get("video_file_path"):
+                vpath = asm_result["video_file_path"]
+                vname = asm_result["video_file_name"]
+                write_log(
+                    f"[阶段5] ✅ 高光成片导出成功: {vname} ({asm_result.get('clip_count', 0)}段拼接)",
+                    "INFO"
+                )
+                # 写入任务状态供前端下载
+                update_task_state(
+                    video_file_path=vpath,
+                    video_file_name=vname,
+                )
+            else:
+                asm_err = asm_result.get("error") or "未知错误"
+                write_log(f"[阶段5] 高光成片合成失败: {asm_err}（任务标记完成但无成片）", "WARN")
+                _write_error_log(f"[_thread_full_pipeline] assemble fail: {asm_err}")
+                # 不中断主流程，任务仍标记 done（切片已打包到 Output 目录）
+        except Exception as asm_e:
+            write_log(f"[阶段5] 高光成片合成异常: {asm_e}", "ERROR")
+            _write_error_log(f"[_thread_full_pipeline] assemble exception: {type(asm_e).__name__}: {asm_e}")
+
         # ===== 7. 全流程结束，全局冷却180s（需求3.3） =====
         update_task_state(
             stage=f"阶段4完成：全流程成功 {packed_ok} 条 → {output_session_dir}。进入全局冷却180s（swap保护）",
@@ -1522,6 +1564,33 @@ def api_startup_check():
 def api_task_state():
     """获取当前任务状态快照"""
     return jsonify({"code": 0, "data": get_task_state_snapshot()})
+
+
+@app.route("/api/download_clip", methods=["GET"])
+def api_download_clip():
+    """
+    下载高光成片 MP4
+    Query: 无（直接读取当前任务状态的 video_file_path）
+    返回：文件流（Content-Disposition: attachment）或错误 JSON
+    """
+    from flask import send_file
+    snap = get_task_state_snapshot()
+    vpath = snap.get("video_file_path") or ""
+    if not vpath:
+        return jsonify({"code": 1, "msg": "未生成剪辑视频（video_file_path 为空）"}), 404
+    p = Path(vpath)
+    if not p.exists() or p.stat().st_size == 0:
+        return jsonify({"code": 2, "msg": f"成片文件不存在或为空: {p.name}"}), 404
+    try:
+        return send_file(
+            str(p.resolve()),
+            as_attachment=True,
+            download_name=p.name,
+            mimetype="video/mp4",
+        )
+    except Exception as e:
+        _write_error_log(f"[api_download_clip] send_file fail: {e}")
+        return jsonify({"code": 3, "msg": f"下载失败: {e}"}), 500
 
 
 @app.route("/api/logs", methods=["GET"])

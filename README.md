@@ -585,6 +585,34 @@ source .venv/bin/activate && python3 app.py
 ./start.command
 ```
 
+### 13. 任务完成但文件夹只有字幕 json，无剪辑视频
+
+**现象**：任务显示全部完成（进度 100%），`Temp_Clips` / `Output` 目录只有 srt 字幕和 slice_candidates.json，没有拼接好的 MP4 成片。
+
+**故障根因**：缺少 FFmpeg 视频裁剪、拼接导出逻辑，仅完成文本分析未合成视频（本次迭代已补充完整视频合成逻辑）。
+
+**修复操作**：本次迭代已新增 `clip_assembler.py` 模块，自动读取高光时间段 → FFmpeg 裁剪 → concat 拼接 → 输出至 `Finished_Clips`。
+
+**手动排查步骤**：
+
+```bash
+# ① 确认 FFmpeg 已安装（未安装执行 brew install ffmpeg）
+ffmpeg -version
+
+# ② 修复项目文件夹读写权限
+chmod -R 777 ./AutoClipFactory
+
+# ③ 重启项目重新提交剪辑任务
+./start.command
+```
+
+**成片存放路径**：项目内 `Finished_Clips/` 文件夹，命名规则 `原视频名称_高光成片.mp4`。
+
+> **配套优化说明**：
+> - 成片统一存放路径：项目内 `Finished_Clips` 文件夹
+> - 自动清理临时分片，减少硬盘占用
+> - 前端可视化下载入口，任务完成后页面显示蓝色下载按钮，无需手动翻文件夹
+
 ---
 
 ## 许可证

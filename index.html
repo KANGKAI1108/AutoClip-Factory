@@ -280,6 +280,24 @@ button.danger:hover:not(:disabled) { background: #e0352a; }
     <div id="s-err-hint" style="margin-top:4px; color:#6b7280; font-size:12px; line-height:1.5;">
         💡 模型加载失败float16解决方案：代码已切换int8通用运算精度，适配全部Mac；低配设备可更换tiny模型进一步降低硬件负载。
     </div>
+    <!-- 阶段5新增：高光成片下载模块 -->
+    <div id="download-section" style="margin-top:12px; padding:12px; background:#f0f7ff; border:1px solid #bfdbfe; border-radius:8px; display:none;">
+        <div style="color:#1d4ed8; font-size:14px; font-weight:600; margin-bottom:8px;">
+            ✅ 高光剪辑完成，点击下方按钮下载成片MP4
+        </div>
+        <div style="font-size:12px; color:#6b7280; margin-bottom:8px;">
+            <span>文件名：</span><span id="dl-filename" style="font-weight:600; color:#374151;">—</span>
+        </div>
+        <button id="btn-download" type="button"
+            style="background:#2563eb; color:#fff; border:none; padding:8px 20px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+            ⬇ 下载高光成片 MP4
+        </button>
+    </div>
+    <div id="download-empty" style="margin-top:12px; padding:10px; background:#f3f4f6; border:1px solid #d1d5db; border-radius:8px; display:none;">
+        <div style="color:#6b7280; font-size:13px;">
+            📦 未生成剪辑视频（任务完成后此处显示下载入口，或切片打包已输出至 Output 目录）
+        </div>
+    </div>
 </div>
 
 <!-- ============ 日志卡片 ============ -->
@@ -461,6 +479,34 @@ function updateStateUI(st) {
     } else {
         err.style.display = "none";
         err.textContent = "";
+    }
+
+    // ---- 阶段5：高光成片下载模块显隐控制 ----
+    const dlSection = $("download-section");
+    const dlEmpty = $("download-empty");
+    const dlBtn = $("btn-download");
+    const dlFilename = $("dl-filename");
+    const vpath = st.video_file_path || "";
+    const vname = st.video_file_name || "";
+    if (st.status === "done" && vpath) {
+        // 有成片：激活蓝色下载按钮
+        dlSection.style.display = "block";
+        dlEmpty.style.display = "none";
+        dlFilename.textContent = vname || "高光成片.mp4";
+        dlBtn.disabled = false;
+        dlBtn.style.opacity = "1";
+        dlBtn.style.cursor = "pointer";
+        dlBtn.onclick = function() {
+            window.location.href = "/api/download_clip";
+        };
+    } else if (st.status === "done" && !vpath) {
+        // 任务完成但无成片：置灰提示
+        dlSection.style.display = "none";
+        dlEmpty.style.display = "block";
+    } else {
+        // 运行中/idle：隐藏
+        dlSection.style.display = "none";
+        dlEmpty.style.display = "none";
     }
 
     // 按钮禁用
