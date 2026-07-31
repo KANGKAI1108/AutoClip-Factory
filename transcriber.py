@@ -358,7 +358,6 @@ class FasterWhisperTranscriber:
                     beam_size=self.BEAM_SIZE,
                     vad_filter=self.VAD_FILTER,
                     chunk_length=self.CHUNK_LENGTH,
-                    batch_size=self.BATCH_SIZE,
                     condition_on_previous_text=False,  # 省上下文缓存
                 )
             except Exception as e:
