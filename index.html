@@ -277,6 +277,9 @@ button.danger:hover:not(:disabled) { background: #e0352a; }
     </div>
     <div class="progress-text" id="progress-text">0%</div>
     <div id="s-err" style="margin-top:10px; color:#c5221f; font-size:13px; display:none;"></div>
+    <div id="s-err-hint" style="margin-top:4px; color:#6b7280; font-size:12px; line-height:1.5;">
+        💡 模型加载失败float16解决方案：代码已切换int8通用运算精度，适配全部Mac；低配设备可更换tiny模型进一步降低硬件负载。
+    </div>
 </div>
 
 <!-- ============ 日志卡片 ============ -->

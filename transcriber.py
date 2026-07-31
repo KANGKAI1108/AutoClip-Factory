@@ -3,8 +3,8 @@
 AutoClip Factory - 阶段2：faster-whisper 字幕提取类
 适配 macOS Apple Silicon 8GB 机型：
   * 固定模型 base.en（~140MB 内存占用，8GB 机型友好）
-  * device="cpu" 显式指定 —— M 芯片走 CTranslate2 CPU float16 路径（无需 CUDA）
-  * compute_type="float16"，禁用 int8（Apple Silicon NEON+AMX 对 fp16 友好）
+  * device="cpu" 显式指定 —— M 芯片走 CTranslate2 CPU int8 通用路径
+  * compute_type="int8"，通用整型精度，兼容所有Mac机型（解决float16硬件不支持导致加载失败报错），降低内存占用
   * vad_filter=True 过滤静音（减少转录时间，降内存峰值）
   * 分段冷却：每处理 10 分钟音频，自动 sleep 30s（减少 swap）
   * 完整释放：model.unload_model() + del 实例 + gc.collect()
@@ -42,8 +42,8 @@ class FasterWhisperTranscriber:
 
     # ---------- 硬约束常量（M1 8GB 机型友好）----------
     MODEL_SIZE = "base.en"             # 固定 base.en（英文，~140MB）
-    DEVICE = "cpu"                     # M芯片走 CTranslate2 CPU float16 路径
-    COMPUTE_TYPE = "float16"           # 显式 fp16，禁用 int8
+    DEVICE = "cpu"                     # M芯片走 CTranslate2 CPU int8 通用路径
+    COMPUTE_TYPE = "int8"              # 修改为int8精度，兼容所有Mac设备，解决float16硬件不支持加载失败报错，降低内存占用
     VAD_FILTER = True                  # 过滤静音，减少推理量
     BEAM_SIZE = 3                      # beam=3（比默认5更省内存）
     CHUNK_LENGTH = 20                  # 20s 一 chunk（控制内存峰值）

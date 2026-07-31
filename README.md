@@ -566,6 +566,25 @@ source .venv/bin/activate && python3 app.py
 
 > **推荐**：如代理环境不稳定，建议直接使用【选择文件】上传本地 MP4 视频，完全规避网络问题。
 
+### 12. 模型加载失败 float16 compute type 不支持
+
+**现象**：进入音频转录阶段，Whisper 模型加载时报 `float16 compute type is not supported` 或硬件不兼容错误。
+
+**故障原因**：本机 Mac 硬件无 float16 半精度运算加速（部分 Mac 机型 / CTranslate2 CPU 后端不支持），导致 Whisper 默认 float16 无法加载。
+
+**修复逻辑**：代码已自动切换为 **int8 整型运算精度**，全机型兼容，内存消耗减半。
+
+**手动备选优化（低配 8GB 设备可进一步降低负载）**：
+
+```bash
+# 方案1：把模型名称 base.en 替换为 tiny.en，大幅降低 CPU/内存占用
+# 修改 transcriber.py：
+# MODEL_SIZE = "base.en"  →  MODEL_SIZE = "tiny.en"
+
+# 方案2：关闭其他后台软件释放内存后重启项目
+./start.command
+```
+
 ---
 
 ## 许可证
