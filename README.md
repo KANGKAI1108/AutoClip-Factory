@@ -70,6 +70,7 @@ AutoClipFactory 是一款运行在 macOS Apple Silicon 上的**纯本地**短视
 | Python | 3.10 ~ 3.13（一键脚本会自动安装） |
 | Homebrew | 用于安装 ffmpeg / ollama（一键脚本会自动安装） |
 | Deno | YouTube链接解析依赖，本机已安装完成（`brew install deno`），无需再次执行 |
+| 代理端口 | 暴加速默认端口7892，代码内 `--proxy` 已统一修改为7892 |
 
 ### macOS TCC 磁盘权限
 
@@ -119,9 +120,9 @@ AutoClipFactory 是一款运行在 macOS Apple Silicon 上的**纯本地**短视
 
 ## 核心使用流程（优先级说明）
 
-> **优先推荐使用「上传本地视频」功能**（点击【选择文件】上传 MP4），无网络限制、运行稳定零报错。
+> **推荐工作流：上传本地 MP4 视频**（点击【选择文件】），无代理、网络依赖，零报错。
 >
-> YouTube 链接仅作为备选方案，存在国内网络 SSL 阻断限制，必须开启本地代理才可使用。本机已安装 Deno 解析环境，无需再次安装。
+> YouTube 海外链接仅作为备用方案，必须后台运行暴加速代理才可使用。
 
 ## 快速开始（一键启动）
 
@@ -408,7 +409,7 @@ Whisper / FFmpeg / Ollama 三类大内存进程分时串行运行，任意时刻
 - [ ] Ollama 服务已启动且 llama3:8b 模型已拉取（`ollama list` 可见 llama3:8b）
 - [ ] Deno 已安装（`deno --version` 可正常输出，YouTube 链接解析依赖）
 - [ ] macOS TCC 磁盘权限已授权（终端/Python 可访问 `~/AutoClip_Factory/`）
-- [ ] **使用 YouTube 链接下载前**：确认本地代理已启动、`downloader.py` 中 `--proxy` 端口配置与代理软件端口匹配
+- [ ] **使用 YouTube 链接下载前**：确认暴加速代理软件已启动（端口7892）
 
 ---
 
@@ -538,28 +539,29 @@ source .venv/bin/activate
 python3 -c "from faster_whisper import WhisperModel; WhisperModel('base.en', compute_type='int8')"
 ```
 
-### 11. YouTube 下载报错 SSL: UNEXPECTED_EOF_WHILE_READING / 下载失败未找到输出文件
+### 11. YouTube 下载报错 Errno 61 Connection refused / SSL连接中断
 
-**现象**：通过链接下载 YouTube 视频时报 `SSL: UNEXPECTED_EOF_WHILE_READING`，或下载完成后提示「未找到输出文件」。
+**现象**：通过链接下载 YouTube 视频时报 `Errno 61 Connection refused`，或重试后仍下载失败。
 
-**前置条件**：Deno 已安装完成（终端执行 `deno --version` 可正常输出版本）。
+**故障根源**：暴加速软件未打开，或代码代理端口与软件端口不一致（本机固定7892）。
 
 **解决步骤**：
 
 ```bash
-# ① 更新 yt-dlp 到最新版（使用清华镜像源加速）
+# ① 打开暴加速，保持软件后台常驻
+
+# ② 核对 downloader.py 内 proxy 端口为7892
+#    "--proxy", "http://127.0.0.1:7892"
+
+# ③ 更新 yt-dlp 到最新版（使用清华镜像源加速）
 pip3 install -U yt-dlp -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# ② 打开 downloader.py，确认 proxy 代理端口与本地代理软件端口保持一致
-#    默认配置为 "--proxy", "http://127.0.0.1:7890"
-#    如你的代理端口不同，请修改为实际端口（如 1087/8080）
-
-# ③ 开启本地代理软件，重启项目
+# ④ 重启项目
 ./start.command
 # 或手动重启
 source .venv/bin/activate && python3 app.py
 
-# ④ 重新提交 YouTube 链接
+# ⑤ 重新提交 YouTube 链接测试
 ```
 
 > **推荐**：如代理环境不稳定，建议直接使用【选择文件】上传本地 MP4 视频，完全规避网络问题。
