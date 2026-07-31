@@ -1,4 +1,9 @@
-# Python
+# ============================================================
+# AutoClipFactory - .gitignore
+# 严格过滤：临时视频、缓存、日志、系统文件、虚拟环境、Ollama缓存
+# ============================================================
+
+# ---- Python 编译缓存 ----
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,34 +13,55 @@ __pycache__/
 build/
 dist/
 
-# 虚拟环境
+# ---- 虚拟环境 ----
 .venv/
 venv/
 env/
+ENV/
 
-# 运行时日志（自动生成）
+# ---- 运行时日志（自动生成，不入库）----
 app.log
 error.log
 *.log
 
-# 工作目录内容（首次运行自动创建，不入库）
+# ---- 工作目录内容（首次运行自动创建，仅保留目录占位）----
 Source_Videos/*
 Temp_Clips/*
 Output/*
 static/*
-# 保留目录占位（git 不跟踪空目录）
 !Source_Videos/.gitkeep
 !Temp_Clips/.gitkeep
 !Output/.gitkeep
 !static/.gitkeep
 
-# macOS
+# ---- tmp 临时缓存文件 ----
+*.tmp
+test_write.tmp
+
+# ---- Ollama 本地缓存 ----
+.ollama/
+ollama_models/
+
+# ---- 环境配置文件（含敏感信息）----
+.env
+.env.local
+.env.*
+
+# ---- macOS 系统文件 ----
 .DS_Store
 .AppleDouble
 .LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
 
-# IDE
+# ---- IDE 编辑器 ----
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
+
+# ---- 断点缓存（运行时自动生成）----
+Temp_Clips/.clip_cache/
